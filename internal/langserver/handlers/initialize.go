@@ -8,6 +8,7 @@ import (
 
 	"github.com/creachadair/jrpc2"
 	lsctx "github.com/hashicorp/terraform-ls/internal/context"
+	idecoder "github.com/hashicorp/terraform-ls/internal/decoder"
 	ilsp "github.com/hashicorp/terraform-ls/internal/lsp"
 	lsp "github.com/hashicorp/terraform-ls/internal/protocol"
 	"github.com/hashicorp/terraform-ls/internal/settings"
@@ -68,7 +69,7 @@ func (svc *service) Initialize(ctx context.Context, params lsp.InitializeParams)
 	}
 
 	if params.ClientInfo.Name != "" {
-		err = lsctx.SetClientName(ctx, params.ClientInfo.Name)
+		err = idecoder.SetClientName(ctx, params.ClientInfo.Name)
 		if err != nil {
 			return serverCaps, err
 		}

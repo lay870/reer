@@ -9,41 +9,21 @@ import (
 	lsp "github.com/hashicorp/terraform-ls/internal/protocol"
 )
 
-func (h *logHandler) WorkspaceSymbol(ctx context.Context, params lsp.WorkspaceSymbolParams) ([]lsp.SymbolInformation, error) {
-	var symbols []lsp.SymbolInformation
-
-	mf, err := lsctx.ModuleFinder(ctx)
-	if err != nil {
-		return symbols, err
-	}
-
+func (svc *service) WorkspaceSymbol(ctx context.Context, params lsp.WorkspaceSymbolParams) ([]lsp.SymbolInformation, error) {
 	cc, err := lsctx.ClientCapabilities(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	modules, err := mf.ListModules()
+	d := decoder.NewDecoder(ctx, &decoder.PathReader{
+		ModuleReader: svc.modStore,
+		SchemaReader: svc.schemaStore,
+	})
+
+	symbols, err := d.Symbols(ctx, params.Query)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, mod := range modules {
-		d, err := decoder.DecoderForModule(ctx, mod)
-		if err != nil {
-			return symbols, err
-		}
-
-		schema, _ := mf.SchemaForModule(mod.Path)
-		d.SetSchema(schema)
-
-		modSymbols, err := d.Symbols(params.Query)
-		if err != nil {
-			continue
-		}
-
-		symbols = append(symbols, ilsp.SymbolInformation(mod.Path, modSymbols,
-			cc.Workspace.Symbol)...)
-	}
-
-	return symbols, nil
+	return ilsp.WorkspaceSymbols(symbols, cc.Workspace.Symbol), nil
 }

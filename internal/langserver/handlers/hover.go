@@ -8,7 +8,7 @@ import (
 	lsp "github.com/hashicorp/terraform-ls/internal/protocol"
 )
 
-func (h *logHandler) TextDocumentHover(ctx context.Context, params lsp.TextDocumentPositionParams) (*lsp.Hover, error) {
+func (svc *service) TextDocumentHover(ctx context.Context, params lsp.TextDocumentPositionParams) (*lsp.Hover, error) {
 	fs, err := lsctx.DocumentStorage(ctx)
 	if err != nil {
 		return nil, err
@@ -19,40 +19,24 @@ func (h *logHandler) TextDocumentHover(ctx context.Context, params lsp.TextDocum
 		return nil, err
 	}
 
-	mf, err := lsctx.ModuleFinder(ctx)
+	doc, err := fs.GetDocument(ilsp.FileHandlerFromDocumentURI(params.TextDocument.URI))
 	if err != nil {
 		return nil, err
 	}
 
-	file, err := fs.GetDocument(ilsp.FileHandlerFromDocumentURI(params.TextDocument.URI))
+	d, err := svc.decoderForDocument(ctx, doc)
 	if err != nil {
 		return nil, err
 	}
 
-	mod, err := mf.ModuleByPath(file.Dir())
+	fPos, err := ilsp.FilePositionFromDocumentPosition(params, doc)
 	if err != nil {
 		return nil, err
 	}
 
-	schema, err := schemaForDocument(mf, file)
-	if err != nil {
-		return nil, err
-	}
-
-	d, err := decoderForDocument(ctx, mod, file.LanguageID())
-	if err != nil {
-		return nil, err
-	}
-	d.SetSchema(schema)
-
-	fPos, err := ilsp.FilePositionFromDocumentPosition(params, file)
-	if err != nil {
-		return nil, err
-	}
-
-	h.logger.Printf("Looking for hover data at %q -> %#v", file.Filename(), fPos.Position())
-	hoverData, err := d.HoverAtPos(file.Filename(), fPos.Position())
-	h.logger.Printf("received hover data: %#v", hoverData)
+	svc.logger.Printf("Looking for hover data at %q -> %#v", doc.Filename(), fPos.Position())
+	hoverData, err := d.HoverAtPos(doc.Filename(), fPos.Position())
+	svc.logger.Printf("received hover data: %#v", hoverData)
 	if err != nil {
 		return nil, err
 	}

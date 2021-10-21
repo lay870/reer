@@ -13,7 +13,7 @@ import (
 	lsp "github.com/hashicorp/terraform-ls/internal/protocol"
 )
 
-func (h *logHandler) TextDocumentCodeLens(ctx context.Context, params lsp.CodeLensParams) ([]lsp.CodeLens, error) {
+func (svc *service) TextDocumentCodeLens(ctx context.Context, params lsp.CodeLensParams) ([]lsp.CodeLens, error) {
 	list := make([]lsp.CodeLens, 0)
 
 	fs, err := lsctx.DocumentStorage(ctx)
@@ -27,12 +27,12 @@ func (h *logHandler) TextDocumentCodeLens(ctx context.Context, params lsp.CodeLe
 		return list, err
 	}
 
-	list = append(list, h.referenceCountCodeLens(ctx, file)...)
+	list = append(list, svc.referenceCountCodeLens(ctx, file)...)
 
 	return list, nil
 }
 
-func (h *logHandler) referenceCountCodeLens(ctx context.Context, doc filesystem.Document) []lsp.CodeLens {
+func (svc *service) referenceCountCodeLens(ctx context.Context, doc filesystem.Document) []lsp.CodeLens {
 	list := make([]lsp.CodeLens, 0)
 
 	cc, err := lsctx.ClientCapabilities(ctx)
@@ -45,26 +45,10 @@ func (h *logHandler) referenceCountCodeLens(ctx context.Context, doc filesystem.
 		return list
 	}
 
-	mf, err := lsctx.ModuleFinder(ctx)
+	d, err := svc.decoderForDocument(ctx, doc)
 	if err != nil {
 		return list
 	}
-
-	mod, err := mf.ModuleByPath(doc.Dir())
-	if err != nil {
-		return list
-	}
-
-	schema, err := schemaForDocument(mf, doc)
-	if err != nil {
-		return list
-	}
-
-	d, err := decoderForDocument(ctx, mod, doc.LanguageID())
-	if err != nil {
-		return list
-	}
-	d.SetSchema(schema)
 
 	refTargets, err := d.ReferenceTargetsInFile(doc.Filename())
 	if err != nil {
